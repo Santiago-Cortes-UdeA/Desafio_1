@@ -1,0 +1,97 @@
+#include <Adafruit_LiquidCrystal.h>
+Adafruit_LiquidCrystal Pantalla (0);
+unsigned long TiempoInicio= 0;
+unsigned long TiempoFin= 0;
+unsigned int Muestreo;
+int senal= A1;
+int Cap= 20;
+int Pulsador = 2;
+byte PulsadorFin= 4;
+int* Info = new int [Cap];
+
+bool Cuadrado(int* Info, int& Cap){
+  for (int i = 0; i< Cap; i++){
+    Serial.print(Info[i]); Serial.print(" ");
+  }
+  int Val1=Info[1];
+  int Val2=Val1;
+  byte contVal=0;
+  for (int i = 1; i<Cap; i++){
+    //Serial.print("Valor 1: ");Serial.println(Val1);Serial.print("Valor 2: ");Serial.println(Val2);
+    if ((Info[i]!=Val1)&&(Info[i]!=Val2)){
+      Val2=Info[i];
+      //Serial.print("Valor 1 diff: ");Serial.println(Val1);Serial.print("Valor 2 diff: ");Serial.println(Val2);
+      contVal++;
+    }
+    if (contVal>1){
+      Serial.println(Info[Cap]);
+      return false;
+    }
+  }
+  Serial.println("Retorno true");
+  return true;
+}
+
+int Forma(int* Info, int& Cap){
+  if (Cuadrado(Info, Cap)){
+    return 1;
+  }
+  else{
+    return 0;
+  }
+}
+
+void AumentoCapacidad(int*& Arr, int& Cap){
+
+  int CapNew = Cap+20;
+  int* Aux = new int [CapNew];
+  for (int i = 0; i<Cap; i++){
+    *(Aux+i)=*(Arr+i);
+  }
+  delete[] Arr;
+  Arr=Aux;
+  Cap=CapNew;
+  Serial.println("\n");
+}
+
+void Datos(int TiempoInicio, int* Info, int& Cap){
+  Muestreo=TiempoInicio/50;
+  int numData=0;
+  while (digitalRead(PulsadorFin)==LOW){
+    if (Muestreo!=millis()/50){
+     	Info[numData]=analogRead(senal);
+      Serial.print(numData);Serial.print(" ");
+      Serial.println(analogRead(senal));
+      	
+      	Muestreo=millis()/50;
+      	numData++;
+    }
+    if (numData>Cap){
+    	AumentoCapacidad(Info, Cap);
+    }
+  }
+  
+}
+
+void setup()
+{
+  Serial.begin(9600);
+  Pantalla.begin(16,2);
+  Pantalla.setCursor(0,0);
+  pinMode(Pulsador,INPUT);
+  pinMode(PulsadorFin,INPUT);
+  
+}
+
+void loop()
+{
+  TiempoInicio=millis();
+  if(digitalRead(Pulsador)==HIGH){
+   	Datos(TiempoInicio, Info, Cap);
+    for (int i = 0; i< Cap; i++){
+    Serial.print(Info[i]); Serial.print(" ");
+  	}
+    Pantalla.print(Forma(Info, Cap));
+  }
+
+}
