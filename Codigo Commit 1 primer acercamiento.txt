@@ -9,69 +9,16 @@ int Pulsador = 2;
 byte PulsadorFin= 4;
 int* Info = new int [Cap];
 
-bool Cuadrado(int* Info, int& Cap){
-  for (int i = 0; i< Cap; i++){
-    Serial.print(Info[i]); Serial.print(" ");
-  }
-  int Val1=Info[1];
-  int Val2=Val1;
-  byte contVal=0;
-  for (int i = 1; i<Cap; i++){
-    //Serial.print("Valor 1: ");Serial.println(Val1);Serial.print("Valor 2: ");Serial.println(Val2);
-    if ((Info[i]!=Val1)&&(Info[i]!=Val2)){
-      Val2=Info[i];
-      //Serial.print("Valor 1 diff: ");Serial.println(Val1);Serial.print("Valor 2 diff: ");Serial.println(Val2);
-      contVal++;
-    }
-    if (contVal>1){
-      Serial.println(Info[Cap]);
-      return false;
-    }
-  }
-  Serial.println("Retorno true");
-  return true;
-}
+bool Cuadrado(int* Info, int& Cap);
+bool Seno(int* Info, int& Cap, int Inicio);
+bool Triangulo(int* Info, int& Cap);
+int Forma(int* Info, int& Cap, int Inicio);
 
-int Forma(int* Info, int& Cap){
-  if (Cuadrado(Info, Cap)){
-    return 1;
-  }
-  else{
-    return 0;
-  }
-}
+void AumentoCapacidad(int*& Arr, int& Cap);
+int Datos(int TiempoInicio, int*& Info, int& Cap);
 
-void AumentoCapacidad(int*& Arr, int& Cap){
-
-  int CapNew = Cap+20;
-  int* Aux = new int [CapNew];
-  for (int i = 0; i<Cap; i++){
-    *(Aux+i)=*(Arr+i);
-  }
-  delete[] Arr;
-  Arr=Aux;
-  Cap=CapNew;
-  Serial.println("\n");
-}
-
-void Datos(int TiempoInicio, int* Info, int& Cap){
-  Muestreo=TiempoInicio/50;
-  int numData=0;
-  while (digitalRead(PulsadorFin)==LOW){
-    if (Muestreo!=millis()/50){
-     	Info[numData]=analogRead(senal);
-      Serial.print(numData);Serial.print(" ");
-      Serial.println(analogRead(senal));
-      	
-      	Muestreo=millis()/50;
-      	numData++;
-    }
-    if (numData>Cap){
-    	AumentoCapacidad(Info, Cap);
-    }
-  }
-  
-}
+int Amplitud(int* Info, int CantData);
+int Frecuencia(int* Info, int CantData);
 
 void setup()
 {
@@ -85,13 +32,175 @@ void setup()
 
 void loop()
 {
-  TiempoInicio=millis();
   if(digitalRead(Pulsador)==HIGH){
-   	Datos(TiempoInicio, Info, Cap);
-    for (int i = 0; i< Cap; i++){
-    Serial.print(Info[i]); Serial.print(" ");
-  	}
-    Pantalla.print(Forma(Info, Cap));
+    int CantDatos=0;
+    TiempoInicio=millis();
+   	CantDatos=Datos(TiempoInicio, Info, Cap);
+    Pantalla.setCursor(0,1);
+	Pantalla.print("A="); Pantalla.print(Amplitud(Info, CantDatos));
+    Pantalla.setCursor(6,1);
+    Pantalla.print("F=");Pantalla.print(Frecuencia(Info, CantDatos));
+    Pantalla.setCursor(0,0);
+    Pantalla.print(Forma(Info, CantDatos, TiempoInicio));
   }
 
+}
+
+/*______________________________________________________________
+
+					FUNCIONES DE FORMA
+			Funciones para verificar la forma de la onda
+______________________________________________________________*/
+
+bool Cuadrado(int* Info, int& Cap){
+  int Val1=Info[1];
+  int Val2=Val1;
+  byte contVal=0;
+  for (int i = 0; i<Cap; i++){
+    if ((Info[i]!=Val1)&&(Info[i]!=Val2)){
+      Val2=Info[i];
+      contVal++;
+    }
+    if (contVal>1){
+      return false;
+    }
+  }
+  if (contVal==0){
+    return false;
+  }
+  
+  return true;
+}
+
+bool Seno(int* Info, int& Cap, int Inicio){
+int diffmax=0;
+  int pendiente = abs(Info[0]-Info[1]);
+  int diff=0;
+  for (int i = 1; i<Cap-1; i++){
+    diff=abs(Info[i]-Info[i+1]);
+    Serial.print(diff);Serial.print("/");Serial.println(pendiente);
+    if (diff>diffmax){
+      diffmax=diff;
+    }
+    if (diff<=pendiente-12 || diff>=pendiente+12){
+      	return false;
+    	}
+	}
+  Serial.println(diffmax);
+  return true;
+}
+
+
+bool Triangulo(int* Info, int& Cap){
+  int diffmax=0;
+  int pendiente = abs(Info[0]-Info[1]);
+  int diff=0;
+  for (int i = 1; i<Cap-1; i++){
+    diff=abs(Info[i]-Info[i+1]);
+    Serial.print(diff);Serial.print("/");Serial.println(pendiente);
+    if (diff>diffmax){
+      diffmax=diff;
+    }
+	}
+  Serial.println(diffmax);
+  return true;
+}
+
+int Forma(int* Info, int& Cap, int Inicio){
+  if (Cuadrado(Info, Cap)){
+    return 1;
+  }
+  else if (Seno(Info, Cap,Inicio)){
+    return 2;
+  }
+  else if (Triangulo(Info, Cap)){
+    return 3;
+  }
+  else{
+    return 0;
+  }
+}
+/*______________________________________________________________
+
+					FUNCIONES DE DATOS
+Funciones para crear las estructuras de datos, y administrarlas
+
+_______________________________________________________________*/
+
+void AumentoCapacidad(int*& Arr, int& Cap){
+  int CapNew = Cap+20;
+  int* Aux = new int [CapNew];
+  for (int i = 0; i<Cap; i++){
+    *(Aux+i)=*(Arr+i);
+  }
+  delete[] Arr;
+  Arr=Aux;
+  Cap=CapNew;
+}
+
+int Datos(int TiempoInicio, int*& Info, int& Cap){
+  Muestreo=TiempoInicio/10;
+  int numData=0;
+  while (digitalRead(PulsadorFin)==LOW){
+    if (Muestreo!=millis()/10){
+      Info[numData]=analogRead(senal);
+      	Muestreo=millis()/10;
+      	numData++;
+    }
+    if (numData>=Cap){
+    	AumentoCapacidad(Info, Cap);
+    }
+      Serial.println(numData);
+  }
+
+  return numData;
+}
+
+/*______________________________________________________________
+
+					FUNCIONES DE ONDA
+Funciones para determinar la amplitud y frecuencia de las ondas
+
+_______________________________________________________________*/
+
+int Amplitud(int* Info, int CantData){
+  int Max=0, Min=0, Amp;
+  for (int i=0; i<CantData; i++){
+    if (Info[i]>Max){
+      Max=Info[i];
+    	}
+    if (Info[i]<Min){
+      Min=Info[i];
+  		}
+    Amp=abs(Max)+abs(Min);
+    if (Amp%100!=0){
+      Amp+=Amp%100;
+    	}
+	}
+  return Amp/200;
+}
+  
+int Frecuencia(int* Info, int CantData){
+  bool Neg = false;
+  int Frec=0, i=0;
+  if (Info[0]<0){
+      Neg = true;
+      }
+  while (i<CantData){
+    while (Neg){
+      if (Info[i]>=0){
+        Frec++;
+        Neg=!Neg;
+        }
+      i++;
+    }
+    while (!Neg){
+      if (Info[i]<0){
+        Frec++;
+        Neg=!Neg;
+        }
+      i++;
+      }
+  }
+  return Frec/4;
 }
