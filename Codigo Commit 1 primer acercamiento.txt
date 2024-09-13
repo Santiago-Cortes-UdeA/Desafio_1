@@ -73,21 +73,31 @@ bool Cuadrado(int* Info, int& Cap){
 }
 
 bool Seno(int* Info, int& Cap, int Inicio){
-int diffmax=0;
-  int pendiente = abs(Info[0]-Info[1]);
-  int diff=0;
-  for (int i = 1; i<Cap-1; i++){
-    diff=abs(Info[i]-Info[i+1]);
-    Serial.print(diff);Serial.print("/");Serial.println(pendiente);
-    if (diff>diffmax){
-      diffmax=diff;
+  float x=0;
+  int CantExtra=0;
+  int Error = 0;
+  int* DataExtra=AjusteSeno(Info,Cap,CantExtra);
+  for (int i=0;i<CantExtra;i++){
+  	Serial.print(int(100*sin(4*3.14*x)));Serial.print("/");Serial.println(DataExtra[i]);
+    if ((abs(int(100*sin(4*3.14*x))-DataExtra[i])>Error)&&i!=0){
+      Error=abs(int(100*sin(4*3.14*x))-DataExtra[i]);
     }
-    if (diff<=pendiente-12 || diff>=pendiente+12){
-      	return false;
-    	}
-	}
-  Serial.println(diffmax);
-  return true;
+    x+=0.01;
+  }
+  Serial.println("Cambio");
+  for (int i=0;i<Cap;i++){
+  	Serial.print(int(100*sin(4*3.14*x)));Serial.print("/");Serial.println(Info[i]);
+    if (abs(int(100*sin(4*3.14*x))-Info[i])>Error){
+      Error=abs(int(100*sin(4*3.14*x))-Info[i]);
+    }
+    x+=0.01;
+    
+  }
+  Serial.print(Info[0]);Serial.print("/");Serial.println(Info[1]);
+  Serial.println(DataExtra[1]);
+  delete[] DataExtra;
+  Serial.println(Error);
+  Serial.println(Error);
 }
 
 
@@ -111,6 +121,7 @@ int Forma(int* Info, int& Cap, int Inicio){
     return 1;
   }
   else if (Seno(Info, Cap,Inicio)){
+    
     return 2;
   }
   else if (Triangulo(Info, Cap)){
@@ -124,7 +135,6 @@ int Forma(int* Info, int& Cap, int Inicio){
 
 					FUNCIONES DE DATOS
 Funciones para crear las estructuras de datos, y administrarlas
-
 _______________________________________________________________*/
 
 void AumentoCapacidad(int*& Arr, int& Cap){
@@ -156,11 +166,80 @@ int Datos(int TiempoInicio, int*& Info, int& Cap){
   return numData;
 }
 
+int* AjusteSeno (int*& Info, int CantDatos, int& CantDataExtra){
+  bool Neg=false;
+  int Cambios=0;
+  int pos = 0;
+  int signo = 1;
+  if (Info[0]<0){
+    Neg=true;
+  }
+  
+  if (Neg){
+    for (int i = 0; i<CantDatos; i++){
+      Info[i]=-(Info[i]);
+    }
+  }
+  
+  if (Info[0]<=Info[1]){
+    while ((Cambios<2)&&(pos<CantDatos)){
+      if ((signo*Info[pos])<0){
+        Cambios++;
+        signo*=-1;
+        }
+      pos++;
+      }
+    while (Info[pos]<Info[0]){
+      CantDataExtra++;
+      pos++;
+      }
+    int* InfoExtra=new int[CantDataExtra];
+    for (int i = 0; i<CantDataExtra;i++){
+      InfoExtra[i]=Info[pos-1-CantDataExtra+i];
+    	}
+    
+    
+    /*for (int i=0; i<CantDataExtra; i++){
+      Serial.println(InfoExtra[i]);
+    }
+    Serial.println("Real");
+    for (int i=0; i<CantDatos; i++){
+      Serial.println(Info[i]);
+    }*/
+    
+    
+    return InfoExtra;
+  	}
+  
+  else{
+    while ((Cambios<2)&&(pos<CantDatos)){
+      if ((signo*Info[pos])<0){
+        Cambios++;
+        signo*=-1;
+        }
+      pos++;
+      }
+    while (Info[pos]<Info[0]){
+      CantDataExtra++;
+      pos++;
+      }
+    while (Info[pos]>=Info[0]){
+      CantDataExtra++;
+      pos++;
+      }
+    int* InfoExtra=new int[CantDataExtra];
+    for (int i = 0; i<CantDataExtra;i++){
+      InfoExtra[i]=Info[pos-CantDataExtra+i];
+    	}
+    return InfoExtra;
+  	}
+  }
+
+
 /*______________________________________________________________
 
 					FUNCIONES DE ONDA
 Funciones para determinar la amplitud y frecuencia de las ondas
-
 _______________________________________________________________*/
 
 int Amplitud(int* Info, int CantData){
