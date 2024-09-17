@@ -340,7 +340,7 @@ byte Amplitud(int* Info, int CantData){
       Amp+=Amp%100;
     	}
 	}
-  int Centro = (Max - Min)/2;
+  int Centro = (Max + Min)/2;
   if (Centro!=0){
   	for (byte i=0; i<CantData; i++){
     	Info[i]-=Centro;
