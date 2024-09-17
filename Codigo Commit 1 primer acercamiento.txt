@@ -1,5 +1,6 @@
 #include <Adafruit_LiquidCrystal.h>
 Adafruit_LiquidCrystal Pantalla (0);
+
 unsigned int Muestreo;
 byte senal= A1;
 int Cap= 20;
@@ -26,7 +27,6 @@ void Sobreescribir(int* Info);
 
 byte Amplitud(int* Info, int CantData);
 byte Frecuencia(int* Info, int CantData);
-
 
 /*______________________________________________________________
 
@@ -164,11 +164,11 @@ bool Seno(int* Info, int& Cap, int Amp, int Frec){
   int Limite = (Amp*Frec);
 
   if (ErrorAcum/(Cap) <= Limite){
+
    	return true; 
   }
   return false;
 }
-
 
 bool Triangulo(int* Info, int& Cap, int Amp, int Frec){
   int Error = 0;
@@ -203,6 +203,7 @@ byte Forma(int* Info, int& Cap, int Amp, int Frec){
   else if (Triangulo(Info, Cap, Amp, Frec)){
     return 3;
   }  
+
   else{
     return 0;
   }
@@ -216,6 +217,7 @@ _______________________________________________________________*/
 void AumentoCapacidad(int*& Arr, int& Cap){
   int CapNew = Cap+20;
   int* Aux = new int [CapNew];
+
   for (byte i = 0; i<Cap; i++){
     *(Aux+i)=*(Arr+i);
   }
@@ -226,6 +228,7 @@ void AumentoCapacidad(int*& Arr, int& Cap){
 
 int Datos(int*& Info, int& Cap){
   unsigned long Muestreo=millis()/10;
+
   int numData=0;
   while (digitalRead(PulsadorFin)==LOW){
     if (Muestreo!=millis()/10){
@@ -233,6 +236,7 @@ int Datos(int*& Info, int& Cap){
       	Muestreo=millis()/10;
       	numData++;
     }
+
     if (numData>=Cap && numData<=200){
     	AumentoCapacidad(Info, Cap);
     }
@@ -320,11 +324,13 @@ void Sobreescribir(int* Info){
   	Info[i]=Info[i+20];
   }
 }
+
 /*______________________________________________________________
 
 					FUNCIONES DE ONDA
 Funciones para determinar la amplitud y frecuencia de las ondas
 _______________________________________________________________*/
+
 
 byte Amplitud(int* Info, int CantData){
   int Max=Info[0], Min=Info[0], Amp;
@@ -340,9 +346,11 @@ byte Amplitud(int* Info, int CantData){
       Amp+=Amp%100;
     	}
 	}
+
   int Centro = (Max - Min)/2;
   if (Centro!=0){
   	for (byte i=0; i<CantData; i++){
+
     	Info[i]-=Centro;
   	}
   }
@@ -371,6 +379,8 @@ byte Frecuencia(int* Info, int CantData){
       i++;
       }
   }
+
   Serial.println(Frec);
+
   return Frec/4;
 }
