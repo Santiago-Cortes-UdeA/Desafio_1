@@ -114,7 +114,6 @@ bool Seno(int* Info, int& Cap, int Amp, int Frec){
   float Error=0;
   int* DataExtra=AjusteSeno(Info,Cap,CantExtra, Amp, Frec);
   float Ajuste=0;
-  int Info1=Info[1];
   if (CantExtra>0){
     Ajuste=AjusteHorizontalSeno(DataExtra[0], Amp, Frec);
   }
@@ -130,15 +129,15 @@ bool Seno(int* Info, int& Cap, int Amp, int Frec){
   int Val3= abs(100*(Amp)*sin(2*3.14*(Frec)*(x+0.02+Ajuste)));
 
   int Diff2=0;
-  if (abs(Val1-Info1)<=abs(Val2-Info1)){
-  	Diff2=(abs(Val1-Info1)<abs(Val3-Info1))?0:2;
+  if (abs(Val1-Info[1])<=abs(Val2-Info[1])){
+  	Diff2=(abs(Val1-Info[1])<abs(Val3-Info[1]))?0:2;
   }
   else{
-    Diff2=(abs(Val2-Info1)<=abs(Val3-Info1))?1:2;
+    Diff2=(abs(Val2-Info[1])<=abs(Val3-Info[1]))?1:2;
   }
   
   if (Diff2==0){
-    if (Info1<0){
+    if (Info[1]<0){
     x+=0.01;
     }
     else{
@@ -146,7 +145,7 @@ bool Seno(int* Info, int& Cap, int Amp, int Frec){
     }
   }
   else if(Diff2==2){
-    if (Info1<0){
+    if (Info[1]<0){
     x-=0.01;
     }
     else{
@@ -162,7 +161,6 @@ bool Seno(int* Info, int& Cap, int Amp, int Frec){
 
   delete[] DataExtra;
   int Limite = (Amp*Frec);
-
   if (ErrorAcum/(Cap) <= Limite){
    	return true; 
   }
@@ -371,6 +369,5 @@ byte Frecuencia(int* Info, int CantData){
       i++;
       }
   }
-  Serial.println(Frec);
   return Frec/4;
 }
