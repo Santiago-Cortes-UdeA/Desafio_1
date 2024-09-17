@@ -1,0 +1,376 @@
+#include <Adafruit_LiquidCrystal.h>
+Adafruit_LiquidCrystal Pantalla (0);
+unsigned int Muestreo;
+byte senal= A1;
+int Cap= 20;
+byte Pulsador = 2;
+byte PulsadorFin= 4;
+int* Info = new int [Cap];
+
+/*______________________________________________________________
+
+					DEFINICION DE FUNCIONES
+  Encabezados de las funciones y una descripcion corta de ellas
+______________________________________________________________*/
+
+bool Cuadrado(int* Info, int& Cap);
+bool Seno(int* Info, int& Cap, int Amp, int Frec);
+bool Triangulo(int* Info, int& Cap);
+byte Forma(int* Info, int& Cap, int Amp, int Frec);
+
+void AumentoCapacidad(int*& Arr, int& Cap);
+int Datos(int*& Info, int& Cap);
+int* AjusteSeno (int*& Info, int CantDatos, int& CantDataExtra, int Amp, int Frec);
+float AjusteHorizontalSeno (int Pos0, int Amp, int Frec);
+void Sobreescribir(int* Info);
+
+byte Amplitud(int* Info, int CantData);
+byte Frecuencia(int* Info, int CantData);
+
+
+/*______________________________________________________________
+
+					FUNCIONES DE ARDUINO
+				   Void setup y Void loop
+______________________________________________________________*/
+
+void setup()
+{
+  Serial.begin(9600);
+  Pantalla.begin(16,2);
+  Pantalla.setCursor(0,0);
+  pinMode(Pulsador,INPUT);
+  pinMode(PulsadorFin,INPUT);
+  
+}
+
+void loop()
+{
+  if(digitalRead(Pulsador)==HIGH){
+    int CantDatos=0;
+   	CantDatos=Datos(Info, Cap);
+    byte Amp = Amplitud(Info, CantDatos);
+	byte Frec = Frecuencia(Info, CantDatos);
+    byte Tipo= Forma(Info, CantDatos, Amp, Frec);
+    Pantalla.setCursor(0,0);
+    Pantalla.clear();
+    switch (Tipo){
+     case 1:
+     Pantalla.print("Cuadrado   ");
+     break;
+     case 2:
+     Pantalla.print("Seno       ");
+     break;
+     case 3:
+     Pantalla.print("Triangulo  ");
+     break;
+     case 0:
+     Pantalla.print("Desconocida");
+     break;
+    }
+    Pantalla.setCursor(0,1);
+    if (Tipo!=0){
+      Pantalla.print("A= "); Pantalla.print(Amp); Pantalla.print("V");
+      Pantalla.setCursor(6,1);
+      Pantalla.print("F= ");Pantalla.print(Frec); Pantalla.print("Hz");
+    }
+    else{
+      Pantalla.print("No hay info ");
+    }
+  }
+
+}
+
+/*______________________________________________________________
+
+					FUNCIONES DE FORMA
+			Funciones para verificar la forma de la onda
+______________________________________________________________*/
+
+bool Cuadrado(int* Info, int& Cap){
+  int Val1=Info[1];
+  int Val2=Val1;
+  byte contVal=0;
+  for (int i = 0; i<Cap; i++){
+    if ((Info[i]!=Val1)&&(Info[i]!=Val2)){
+      Val2=Info[i];
+      contVal++;
+    }
+    if (contVal>1){
+      return false;
+    }
+  }
+  if (contVal==0){
+    return false;
+  }
+  
+  return true;
+}
+
+bool Seno(int* Info, int& Cap, int Amp, int Frec){
+  float x=0;
+  int CantExtra=0;
+  int ErrorAcum = 0;
+  float Error=0;
+  int* DataExtra=AjusteSeno(Info,Cap,CantExtra, Amp, Frec);
+  float Ajuste=0;
+  int Info1=Info[1];
+  if (CantExtra>0){
+    Ajuste=AjusteHorizontalSeno(DataExtra[0], Amp, Frec);
+  }
+  else{
+    Ajuste=AjusteHorizontalSeno(Info[0], Amp, Frec); 
+  }
+    
+  for (int i=0;i<CantExtra;i++){
+    x+=0.01;
+  }
+  int Val1= abs(100*(Amp)*sin(2*3.14*(Frec)*(x+Ajuste)));
+  int Val2= abs(100*(Amp)*sin(2*3.14*(Frec)*(x+0.01+Ajuste)));
+  int Val3= abs(100*(Amp)*sin(2*3.14*(Frec)*(x+0.02+Ajuste)));
+
+  int Diff2=0;
+  if (abs(Val1-Info1)<=abs(Val2-Info1)){
+  	Diff2=(abs(Val1-Info1)<abs(Val3-Info1))?0:2;
+  }
+  else{
+    Diff2=(abs(Val2-Info1)<=abs(Val3-Info1))?1:2;
+  }
+  
+  if (Diff2==0){
+    if (Info1<0){
+    x+=0.01;
+    }
+    else{
+    x+=0.01; 
+    }
+  }
+  else if(Diff2==2){
+    if (Info1<0){
+    x-=0.01;
+    }
+    else{
+    x+=0.01;
+    }
+  }
+  
+  for (byte i = 0;i<Cap;i++){
+    Error=100*(Amp)*sin(2*3.14*(Frec)*(x+Ajuste))-Info[i];
+    ErrorAcum+=abs(Error);
+    x+=0.01;
+  }
+
+  delete[] DataExtra;
+  int Limite = (Amp*Frec);
+
+  if (ErrorAcum/(Cap) <= Limite){
+   	return true; 
+  }
+  return false;
+}
+
+
+bool Triangulo(int* Info, int& Cap, int Amp, int Frec){
+  int Error = 0;
+  int pendiente = 0;
+  for (int i = 0; i<10; i++){
+    pendiente+=abs(Info[i]-Info[i+1]);
+  }
+  pendiente /= 10;
+  int diff=0;
+  for (int i = 0; i<Cap-1; i++){
+    diff=abs(Info[i]-Info[i+1]);
+    Error+=diff;
+    }
+	
+  if (Amp<2){
+  Amp+=2;
+  }
+  if (abs((Error/Cap)-pendiente)<(Amp*Frec)){
+   return true; 
+  }
+  return false;
+}
+
+byte Forma(int* Info, int& Cap, int Amp, int Frec){
+  if (Cuadrado(Info, Cap)){
+    return 1;
+  }
+    
+  else if (Seno(Info, Cap, Amp, Frec)){
+    return 2;
+  }
+  else if (Triangulo(Info, Cap, Amp, Frec)){
+    return 3;
+  }  
+  else{
+    return 0;
+  }
+}
+/*______________________________________________________________
+
+					FUNCIONES DE DATOS
+Funciones para crear las estructuras de datos, y administrarlas
+_______________________________________________________________*/
+
+void AumentoCapacidad(int*& Arr, int& Cap){
+  int CapNew = Cap+20;
+  int* Aux = new int [CapNew];
+  for (byte i = 0; i<Cap; i++){
+    *(Aux+i)=*(Arr+i);
+  }
+  delete[] Arr;
+  Arr=Aux;
+  Cap=CapNew;
+}
+
+int Datos(int*& Info, int& Cap){
+  unsigned long Muestreo=millis()/10;
+  int numData=0;
+  while (digitalRead(PulsadorFin)==LOW){
+    if (Muestreo!=millis()/10){
+      Info[numData]=analogRead(senal);
+      	Muestreo=millis()/10;
+      	numData++;
+    }
+    if (numData>=Cap && numData<=200){
+    	AumentoCapacidad(Info, Cap);
+    }
+    else if (numData>200){
+    	Sobreescribir(Info);
+      numData-=20;
+    }
+      Serial.println(numData);
+  }
+
+  return numData;
+}
+
+int* AjusteSeno (int*& Info, int CantDatos, int& CantDataExtra, int Amp, int Frec){
+  bool Neg=false;
+  int Cambios=0;
+  int pos = 0;
+  int signo = 1;
+  if (Info[0]<0){
+    Neg=true;
+  }
+  
+  if (Neg){
+    for (int i = 0; i<CantDatos; i++){
+      Info[i]=-(Info[i]);
+    }
+  }
+  
+  if (Info[0]<=Info[1]){
+    while ((Cambios<2)&&(pos<CantDatos)){
+      if ((signo*Info[pos])<0){
+        Cambios++;
+        signo*=-1;
+        }
+      pos++;
+      }
+    while (Info[pos]<Info[0]){
+      CantDataExtra++;
+      pos++;
+      }
+    
+    int* InfoExtra=new int[CantDataExtra];
+    for (int i = 0; i<CantDataExtra;i++){
+      InfoExtra[i]=Info[pos-1-CantDataExtra+i];
+    	}
+    return InfoExtra;
+  	}
+  
+  else{
+    while ((Cambios<2)&&(pos<CantDatos)){
+      if ((signo*Info[pos])<0){
+        Cambios++;
+        signo*=-1;
+        }
+      pos++;
+      }
+    while (Info[pos]<Info[0]){
+      CantDataExtra++;
+      pos++;
+      }
+    while (Info[pos]>Info[0]){
+      CantDataExtra++;
+      pos++;
+      }
+    int* InfoExtra=new int[CantDataExtra];
+    for (int i = 0; i<CantDataExtra;i++){
+      InfoExtra[i]=Info[pos-CantDataExtra+i];
+    	}
+    return InfoExtra;
+  	}
+}
+
+float AjusteHorizontalSeno (int Pos0, int Amp, int Frec){
+  float Ajuste = 0;
+  int Val = 0;
+  while (Pos0>Val){
+    Ajuste+=0.002/(Amp*Frec);
+    Val=100*(Amp)*sin(2*3.14*(Frec)*(Ajuste));
+  }
+  return Ajuste;
+}
+
+void Sobreescribir(int* Info){
+  for (byte i = 0; i<180; i++){
+  	Info[i]=Info[i+20];
+  }
+}
+/*______________________________________________________________
+
+					FUNCIONES DE ONDA
+Funciones para determinar la amplitud y frecuencia de las ondas
+_______________________________________________________________*/
+
+byte Amplitud(int* Info, int CantData){
+  int Max=Info[0], Min=Info[0], Amp;
+  for (byte i=1; i<CantData; i++){
+    if (Info[i]>Max){
+      Max=Info[i];
+    	}
+    if (Info[i]<Min){
+      Min=Info[i];
+  		}
+    Amp=abs(Max)+abs(Min);
+    if (Amp%100!=0){
+      Amp+=Amp%100;
+    	}
+	}
+  int Centro = (Max - Min)/2;
+  if (Centro!=0){
+  	for (byte i=0; i<CantData; i++){
+    	Info[i]-=Centro;
+  	}
+  }
+  return Amp/200;
+}
+  
+byte Frecuencia(int* Info, int CantData){
+  bool Neg = false;
+  int Frec=0, i=0;
+  if (Info[0]<0){
+      Neg = true;
+      }
+  while (i<CantData){
+    while (Neg){
+      if (Info[i]>=0){
+        Frec++;
+        Neg=!Neg;
+        }
+      i++;
+    }
+    while (!Neg){
+      if (Info[i]<0){
+        Frec++;
+        Neg=!Neg;
+        }
+      i++;
+      }
+  }
+  Serial.println(Frec);
+  return Frec/4;
+}
